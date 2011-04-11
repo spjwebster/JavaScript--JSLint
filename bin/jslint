@@ -9,6 +9,35 @@ use Getopt::Long;
 use JavaScript::JSLint::V8 qw( jslint jslint_options );
 
 my $me = basename $0;
+my %all_options = jslint_options();
+
+my %opts;
+GetOptions( \%opts, 
+    'help',
+    'version',
+    'verbose', 
+    map { get_option_spec( $_ ) } sort keys %all_options,
+) or usage();
+
+usage() if $opts{ help };
+version() if $opts{ version };
+
+# Read STDIN unless args present.
+@ARGV = ( '-' ) unless @ARGV;
+
+# Pull out just the lint options
+my %lint_opts = map { $_ => $opts{$_} if defined $all_options{$_} } keys %opts;
+
+# Lint and output errors
+my @error_files = grep { lint_file( $_, %lint_opts ) } @ARGV;
+exit( @error_files > 0 ? 1 : 0 );
+
+sub get_option_spec {
+    my ( $option ) = @_;
+    return "$option=s@"  if $option eq 'predef';
+    return "$option=i"   if grep { $_ eq $option } qw(indent maxerr maxlen);
+    return "$option!";
+}
 
 sub slurp {
     my ( $file ) = @_;
@@ -21,23 +50,21 @@ sub slurp {
 }
 
 sub lint_file {
-    my ( $file, %opts ) = @_;
+    my ( $file, %lint_opts ) = @_;
     my $src = slurp( $file );
-    my @errors = jslint( $src, %opts );
+    my @errors = jslint( $src, %lint_opts );
     if ( @errors ) {
         foreach ( @errors ) {
-            print join( ':',
-                $file,
-                $_->{ line },
-                $_->{ character },
-                $_->{ reason } ),
-              "\n";
+            print $file . 
+                "@" . $_->{ line } . "," . $_->{ character } .
+                ": " . $_->{ reason } . "\n";
+
+            print $_->{ evidence } . "\n" if $opts{ verbose };
         }
     }
     return scalar @errors;
 }
 
-my %all_options = jslint_options();
 
 sub usage {
     my $msg = "usage: $me [--options] [file.js ...]\n";
@@ -50,18 +77,6 @@ sub version {
     print "$me $JavaScript::JSLint::VERSION\n";
     exit 0;
 }
-
-my %opts;
-GetOptions( \%opts, 'help', 'version', map { "$_!" } sort keys %all_options )
-    or usage;
-usage   if $opts{ help };
-version if $opts{ version };
-
-# Read STDIN unless args present.
-@ARGV = ( '-' ) unless @ARGV;
-
-my @error_files = grep { lint_file( $_, %opts ) } @ARGV;
-exit( @error_files > 0 ? 1 : 0 );
 
 __END__
 
