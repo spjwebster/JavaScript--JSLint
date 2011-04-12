@@ -6,7 +6,7 @@ use warnings;
 
 use File::Basename;
 use Getopt::Long;
-use JavaScript::JSLint::V8 qw( jslint jslint_options );
+use JavaScript::JSLint qw( jslint jslint_options );
 
 my $me = basename $0;
 my %all_options = jslint_options();
@@ -28,6 +28,7 @@ version() if $opts{ version };
 # Pull out just the lint options
 my %lint_opts = map { $_ => $opts{$_} if defined $all_options{$_} } keys %opts;
 
+# Parse predef as --predef foo=true|false, defaulting to true 
 if ( defined $lint_opts{predef} ) {
     $lint_opts{predef} = { 
         map { 
@@ -41,6 +42,7 @@ if ( defined $lint_opts{predef} ) {
 my @error_files = grep { lint_file( $_, %lint_opts ) } @ARGV;
 exit( @error_files > 0 ? 1 : 0 );
 
+# Build Getopt::Long spec for jslint option
 sub get_option_spec {
     my ( $option ) = @_;
     return "$option=s@"  if $option eq 'predef';
@@ -48,6 +50,7 @@ sub get_option_spec {
     return "$option!";
 }
 
+# Slurp a file or stdin
 sub slurp {
     my ( $file ) = @_;
     return do { local $/; <STDIN> } if $file eq '-';
@@ -58,6 +61,7 @@ sub slurp {
     return $contents;
 }
 
+# Run jslint over given file with given options
 sub lint_file {
     my ( $file, %lint_opts ) = @_;
     my $src = slurp( $file );
@@ -74,7 +78,7 @@ sub lint_file {
     return scalar @errors;
 }
 
-
+# Output usage report (duh?)
 sub usage {
     my $msg = "usage: $me [--options] [file.js ...]\n";
     $msg .= sprintf( "  --%-08s \t%s\n", $_, $all_options{ $_ } )
