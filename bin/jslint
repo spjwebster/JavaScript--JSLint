@@ -28,6 +28,15 @@ version() if $opts{ version };
 # Pull out just the lint options
 my %lint_opts = map { $_ => $opts{$_} if defined $all_options{$_} } keys %opts;
 
+if ( defined $lint_opts{predef} ) {
+    $lint_opts{predef} = { 
+        map { 
+            my ($name,$val) = split(/=/, $_);
+            $name => $val || 'true';
+        } @{$lint_opts{predef}}
+    }
+}
+
 # Lint and output errors
 my @error_files = grep { lint_file( $_, %lint_opts ) } @ARGV;
 exit( @error_files > 0 ? 1 : 0 );
