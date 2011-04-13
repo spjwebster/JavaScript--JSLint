@@ -18,17 +18,16 @@ our $VERSION = '0.07';
 
     sub _get_linter {
         if ( not $linter ) {
-            eval "use JavaScript::JSLint::V8";
-            if ( not $@ ) {
-                $linter = new JavaScript::JSLint::V8( $jslint_source );
-            } else {
-                eval "use JavaScript::JSLint::SpiderMonkey";
+            my @linter_engines = qw(V8 SpiderMonkey);
+            foreach my $linter_engine ( @linter_engines ) {
+                eval "use JavaScript::JSLint::$linter_engine";
                 if ( not $@ ) {
-                    $linter = new JavaScript::JSLint::SpiderMonkey( $jslint_source );
+                    $linter = "JavaScript::JSLint::$linter_engine"->new( $jslint_source );
+                    last;
                 }
-            };
+            }
 
-            die "Couldn't find a linter compatible with your perl libs" if not $linter;
+            die "Couldn't find a linter compatible with your installed perl libs" if not $linter;
         }
         
         return $linter;
